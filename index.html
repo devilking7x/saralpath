@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SaralPath — Plain-Language Lesson Reader</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="hero">
+  <h1>SaralPath <span class="hi">— सरल पाठ</span></h1>
+  <p class="tagline">Hard textbook English, in simple words — with the Hindi meaning of every hard word, right beside it.</p>
+  <p class="note">Built for AccessED Hacks — the “Understand” door: translation and plain-language explanations. For Hindi-medium learners who can follow a lesson but get stuck on the words.</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1. Paste a lesson paragraph</h2>
+    <textarea id="input" rows="6" placeholder="Paste a hard paragraph from your textbook here… e.g. Photosynthesis is the fundamental process by which green plants transform sunlight, water, and carbon dioxide into glucose and oxygen."></textarea>
+    <div class="row">
+      <button id="simplifyBtn">Make it simple</button>
+      <label class="toggle"><input type="checkbox" id="bigText"> Large text</label>
+      <button id="sampleBtn" class="ghost">Try a sample lesson</button>
+    </div>
+    <div id="scores" class="scores" aria-live="polite"></div>
+    <div id="output" class="output" aria-live="polite"></div>
+    <div id="words" class="words"></div>
+  </section>
+
+  <section class="card">
+    <h2>2. Sample lessons (measured)</h2>
+    <p>Three real textbook-style paragraphs, simplified live. The reading scores are measured by the same code that runs in your browser — open DevTools and run <code>SaralPath.evaluateSamples()</code> to recompute them.</p>
+    <div id="samples"></div>
+  </section>
+
+  <section class="card">
+    <h2>3. Word lookup — the 93-word glossary</h2>
+    <p>Every hard word in the glossary has a simple English word and a Roman Hindi meaning. Type a word to look it up.</p>
+    <div class="row">
+      <input id="lookup" type="text" placeholder="e.g. fundamental, consequently, utilize">
+      <button id="lookupBtn">Look up</button>
+    </div>
+    <div id="lookupResult" class="lookup" aria-live="polite"></div>
+    <p class="muted">Glossary size: <span id="glossarySize">…</span> words. The glossary covers common academic words from school science, civics and maths textbooks — it is not a dictionary.</p>
+  </section>
+
+  <section class="card" id="before-after">
+    <h2>Before / after — one learner, one paragraph</h2>
+    <p><strong>Before:</strong> A Class 9 student opens her science chapter and reads: “Photosynthesis is the fundamental process by which green plants transform sunlight, water, and carbon dioxide into glucose and oxygen.” She knows “plants” and “sunlight” — but “fundamental”, “transform” and “carbon dioxide” stop her. She re-reads the sentence three times and still cannot say what it means.</p>
+    <p><strong>After:</strong> She pastes the paragraph into SaralPath and reads: “Photosynthesis is the basic way by which green plants change sunlight, water, and carbon dioxide into glucose and oxygen.” The hard words are listed beside it with their Hindi meanings — <em>fundamental = basic (buniyadi), transform = change (badalna)</em>. She can now explain the sentence in her own words. What still needs work: she still has to learn the science terms themselves (photosynthesis, glucose, carbon dioxide) — SaralPath simplifies the English around them, it does not teach the concepts.</p>
+  </section>
+
+  <section class="card">
+    <h2>Honest limits</h2>
+    <ul>
+      <li>This is a <strong>rule-based simplifier, not AI</strong>: a 93-word hand-built glossary plus a sentence splitter. It does not understand the text — it swaps known hard words and splits long sentences. Grammar is sometimes imperfect (the simple words are the point).</li>
+      <li>It simplifies the <strong>English around</strong> science terms; it does not explain the science itself. Terms like photosynthesis, glucose and carbon dioxide stay as they are — a learner still needs to learn them.</li>
+      <li>Reading scores (Flesch Reading Ease, Flesch-Kincaid Grade) are standard arithmetic on word and syllable counts — a useful before/after measure, not a guarantee that a particular learner will understand a particular paragraph.</li>
+      <li>Nothing leaves your browser. No account, no server, no tracking. Works offline once loaded.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <p>SaralPath — solo entry by Mohd Raja (devilking7x) for AccessED Hacks. Source: <a href="https://github.com/devilking7x/saralpath">github.com/devilking7x/saralpath</a> (MIT).</p>
+</footer>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  const S = window.SaralPath;
+  const input = document.getElementById('input');
+  const output = document.getElementById('output');
+  const scores = document.getElementById('scores');
+  const wordsDiv = document.getElementById('words');
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch])); }
+
+  function run() {
+    const text = input.value.trim();
+    if (!text) { scores.innerHTML = ''; output.innerHTML = '<p class="muted">Paste a paragraph first — or try a sample lesson below.</p>'; wordsDiv.innerHTML = ''; return; }
+    const r = S.simplify(text);
+    scores.innerHTML =
+      '<div class="score"><span>Reading ease</span><strong>' + r.before.ease + ' → ' + r.after.ease + '</strong><span class="muted">(+ ' + r.easeGain + ')</span></div>' +
+      '<div class="score"><span>Reading grade</span><strong>' + r.before.grade + ' → ' + r.after.grade + '</strong><span class="muted">(− ' + r.gradeDrop + ' grades)</span></div>' +
+      '<div class="score"><span>Words replaced</span><strong>' + r.replacedCount + '</strong><span class="muted">(' + r.replaced.length + ' different words)</span></div>';
+    output.innerHTML = '<h3>Simple version</h3><p>' + esc(r.simplified) + '</p>';
+    if (r.replaced.length) {
+      let html = '<h3>Hard words, in simple words</h3><ul>';
+      r.replaced.forEach(w => { html += '<li><strong>' + esc(w.from) + '</strong> → ' + esc(w.to) + ' <span class="muted">(' + esc(w.hi) + ')</span></li>'; });
+      html += '</ul>';
+      wordsDiv.innerHTML = html;
+    } else {
+      wordsDiv.innerHTML = '<p class="muted">No glossary words found in this text — it is already simple, or its hard words are not in the 93-word list.</p>';
+    }
+  }
+  document.getElementById('simplifyBtn').onclick = run;
+
+  document.getElementById('bigText').onchange = (e) => {
+    document.body.classList.toggle('bigtext', e.target.checked);
+  };
+
+  const samplesDiv = document.getElementById('samples');
+  S.evaluateSamples().forEach((r, i) => {
+    const s = S.SAMPLES[i];
+    const div = document.createElement('div');
+    div.className = 'sample';
+    div.innerHTML =
+      '<h3>' + esc(r.title) + '</h3>' +
+      '<p class="muted">Reading ease ' + r.beforeEase + ' → ' + r.afterEase + ' (+' + r.easeGain + ') · Grade ' + r.beforeGrade + ' → ' + r.afterGrade + ' · ' + r.uniqueReplaced + ' words replaced</p>' +
+      '<p><strong>Original:</strong> ' + esc(s.text) + '</p>' +
+      '<p><strong>Simple:</strong> ' + esc(S.simplify(s.text).simplified) + '</p>';
+    samplesDiv.appendChild(div);
+  });
+  document.getElementById('sampleBtn').onclick = () => {
+    input.value = S.SAMPLES[0].text;
+    run();
+    input.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  document.getElementById('glossarySize').textContent = Object.keys(S.GLOSSARY).length;
+  const lookupInput = document.getElementById('lookup');
+  const lookupResult = document.getElementById('lookupResult');
+  function doLookup() {
+    const w = lookupInput.value.trim();
+    if (!w) { lookupResult.innerHTML = ''; return; }
+    const hit = S.glossaryLookup(w);
+    lookupResult.innerHTML = hit
+      ? '<p><strong>' + esc(hit.word) + '</strong> → ' + esc(hit.simple) + ' <span class="muted">(' + esc(hit.hi) + ')</span></p>'
+      : '<p class="muted">“' + esc(w) + '” is not in the 93-word glossary yet.</p>';
+  }
+  document.getElementById('lookupBtn').onclick = doLookup;
+  lookupInput.addEventListener('keydown', e => { if (e.key === 'Enter') doLookup(); });
+})();
+</script>
+</body>
+</html>
